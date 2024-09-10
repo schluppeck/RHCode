@@ -1,2 +1,2 @@
 # RHCode
-A repo of all the code I am currently working on.
+A repo of the code I am currently working on.
