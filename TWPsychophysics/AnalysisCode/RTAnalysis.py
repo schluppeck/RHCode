@@ -2,15 +2,16 @@ import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import f_oneway
-
+from scipy import stats
 
 # Get participant details and parameters
 PartInitials = "RH"
 Conditions = [0.9, 0.75, 0.6]
 
-SearchTxt = "TW_" + PartInitials + "*"
+FilePrefix = "TW_" + PartInitials + "*"
 
+DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+SearchTxt = DataLocation + FilePrefix
 
 # %%
 # Travel time analysis
@@ -69,7 +70,11 @@ for x in range(len(ReactionTimeTrue)):
 # %%
 # Reaction time anaysis
 
-RTSearchTxt = "RT_" + PartInitials + "*"
+RTPrefix = "RT_" + PartInitials + "*"
+
+DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+RTSearchTxt = DataLocation + RTPrefix
+
 
 # Create list of all file names
 RTAllFileNames =  []
@@ -90,7 +95,7 @@ for File in RTAllFileNames:
             RTAll.append(float(row.iloc[x]))
 
 # Get mean and std 
-RTMean = float(np.mean(RTAll))
+RTMean = float(np.nanmean(RTAll))
 
 # Subtract RT from all TW values
 TW9 = [x - RTMean for x in TW9]
@@ -102,12 +107,32 @@ AllDataTrue = [TW9, TW75, TW6]
 # %%
 # Plotting and ANOVA
 
-fig, ax = plt.subplots()
 
-ax.boxplot(AllDataTrue, tick_labels=Conditions)
-ax.set_xlabel('Contrast level')
-ax.set_ylabel('Reaction time (s)')
+fig, ax = plt.subplots(2)
 
-F, p = f_oneway(TW9, TW75, TW6)
-print(F)
-print(p)
+ax[0].boxplot(AllDataTrue, tick_labels=Conditions)
+ax[0].set_xlabel('Contrast level')
+ax[0].set_ylabel('Reaction time (s)')
+
+#TW9.sort()
+counts, bins = np.histogram(TW75)
+#plt.stairs(counts, bins)
+
+Time = np.linspace(1, 158, 158)
+#ax[1].stairs(counts, bins)
+
+z =stats.probplot(TW6, plot=plt)
+
+
+
+# Test for normality
+print(stats.shapiro(TW9))
+#print(stats.shapiro(TW75))
+print(stats.shapiro(TW6))
+
+print(stats.ttest_rel(TW9, TW75))
+print(stats.ttest_rel(TW75, TW6))
+print(stats.ttest_rel(TW6, TW9))
+# F, p = f_oneway(TW9, TW75, TW6)
+# print(F)
+# print(p)
