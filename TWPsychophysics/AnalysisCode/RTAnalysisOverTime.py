@@ -71,24 +71,35 @@ for x in SepSeries:
 # Remove trials where no wave was triggered
 for x in range(len(RTGrouped)):
     for y in range(len(RTGrouped[x])):
-        if BPGrouped[x][y] == "['right']":
+        if BPGrouped[x][y] == "['left']":
             RTGrouped[x][y] = np.nan
 
 
 # Convert all of the lists to arrays
 RTGroupedArray = np.array(RTGrouped)
 
-# Remove very clear outliers
-Outliers = RTGroupedArray[RTGroupedArray > 5]
+# Remove 3sd outliers
+Outliers = RTGroupedArray[RTGroupedArray > 3.58]
 print('Outliers Removed=')
 print(Outliers)
-RTGroupedArray[RTGroupedArray > 3] = np.nan
+RTGroupedArray[RTGroupedArray > 3.58] = np.nan
+
+# Split runs by conditions
+TW9 = np.array(RTGrouped[0::3])
+TW75 = np.array(RTGrouped[1::3])
+TW6 = np.array(RTGrouped[2::3])
+
+# Average across trials
+TW9AV = np.nanmean(TW9, axis=0)
+TW75AV = np.nanmean(TW75, axis=0)
+TW6AV = np.nanmean(TW6, axis=0)
 
 # Calculate mean and stdev for each trial
 AllDataAv = np.nanmean(RTGroupedArray, axis=0)
 AllDataStd = np.nanstd(RTGroupedArray, axis=0)
 
-
+AAMean =np.nanmean(AllDataAv, axis=0)
+AASD =np.nanmean(AllDataStd, axis=0)
 # %%
 # Reaction time anaysis
 
@@ -119,12 +130,13 @@ for File in RTAllFileNames:
 RTMean = float(np.mean(RTAll))
 
 # # Subtract RT from all TW values
-# TW9 = [x - RTMean for x in TW9]
-# TW75 = [x - RTMean for x in TW75]
-# TW6 = [x - RTMean for x in TW6]   
+TW9AV = [x - RTMean for x in TW9AV]
+TW75AV = [x - RTMean for x in TW75AV]
+TW6AV = [x - RTMean for x in TW6AV]   
     
-# AllDataTrue = [TW9, TW75, TW6]
+
 AllDataAvRT = [x - RTMean for x in AllDataAv]
+
 
 # %%
 # Trigger rates over time
@@ -144,6 +156,14 @@ for x in BPGrouped:
 # Convert all of the lists to arrays
 BPArray = np.array(BPBinarised)
 
+BP9 =BPArray[0::3]
+BP75 =BPArray[1::3]
+BP6 =BPArray[2::3]
+
+BP9 = np.count_nonzero(BP9, axis=0)
+BP75 = np.count_nonzero(BP75, axis=0)
+BP6 = np.count_nonzero(BP6, axis=0)
+
 # calculate % trigger at each trial number
 BPCount = np.count_nonzero(BPArray, axis=0)
 
@@ -152,26 +172,48 @@ for x in range(len(BPCount)):
     BPCount[x] = BPCount[x]/45*100
 
 
-# %%
-# Plotting
+for x in range(len(BP9)):
+    BP9[x] = BP9[x]/15*100
 
-fig, ax = plt.subplots(3)
+for x in range(len(BP75)):
+    BP75[x] = BP75[x]/15*100
+
+for x in range(len(BP6)):
+    BP6[x] = BP6[x]/15*100
+
+# %%
+# PLOTTING
+
+fig, ax = plt.subplots(2)
 
 fig.tight_layout()
-fig.set_figheight(8)
+fig.set_figheight(6)
 
 Time = np.linspace(1, 17, 17)
 
+# WAVE SPEED
 
-# Plot wave speed over time
+# Create standard error 
+RTGroupTrans = RTGroupedArray.transpose()
 
-#ax.plot(Time, AllDataAvRT)
-ax[0].errorbar(Time, AllDataAvRT, AllDataStd, linestyle='None', marker='.')
-#ax[0].xticks(Time)
-#ax[0].set_xlabel('Trial Number')
-ax[0].set_ylabel('Wave travel time (s)')
+Errors = []
+Tmp = []
+for x in RTGroupTrans:
+    for y in x:
+        if y < 100:
+            Tmp.append(y)
+    CurStdErr = np.std(Tmp)
+    Errors.append(CurStdErr)
+    Tmp = []
+# Make appropreate for dot size
+ErrorsDots = [i * 1.7  for i in Errors]
+ErrorsDotsSquared = np.power(ErrorsDots,4)
 
-
+Base = np.linspace(10,10,len(Errors))
+DotSizes = []
+for x in range(len(Errors)):
+    n = Base[x]/ErrorsDotsSquared[x]
+    DotSizes.append(n)
 # Fit and plot linear regression to wave speed over time
 
 slope, intercept, r, p, std_err = stats.linregress(Time, AllDataAvRT)
@@ -181,25 +223,220 @@ def FitLinReg(x):
 
 mymodel = list(map(FitLinReg, Time))
 
-ax[1].scatter(Time, AllDataAvRT)
-ax[1].plot(Time, mymodel, color='orange')
-ax[1].set_ylabel('Wave travel time (s)')
-ax[1].text(-.95, 1.92, 'A', fontsize=16, fontweight='bold', va='top', ha='right')
+ax[0].scatter(Time, AllDataAvRT, DotSizes)
+ax[0].plot(Time, mymodel, color='orange')
+ax[0].set_ylabel('Wave travel time (s)')
+ax[0].set_ylim(0.9, 1.3)
+ax[0].text(-.95, 1.36, 'A', fontsize=16, fontweight='bold', va='top', ha='right')
 
-# Plot trigger rates over time
 
-ax[2].scatter(Time, BPCount, color='C0')
-ax[2].set_xlabel('Presentation number')
-ax[2].set_ylabel('Trigger rate (%)')
-ax[2].set_ylim(0,100)
-ax[2].text(-.95, 120, 'B', fontsize=16, fontweight='bold', va='top', ha='right')
+# TRIGGER RATES
 
-#ax[2].set_title("Trigger rates at each trial", fontsize=13)
+ax[1].scatter(Time, BPCount, color='C0')
+ax[1].set_xlabel('Presentation number')
+ax[1].set_ylabel('Trigger rate (%)')
+ax[1].set_ylim(0,100)
+ax[1].text(-.95, 114, 'B', fontsize=16, fontweight='bold', va='top', ha='right')
+
+#Calculate regression and plot it
 
 slope, intercept, r, p, std_err = stats.linregress(Time, BPCount)
+mymodel = list(map(FitLinReg, Time))
+
+ax[1].plot(Time, mymodel, color='orange')
+
+
+
+
+
+
+# EACH CONDITION
+
+
+f, a = plt.subplots(2,3, figsize=(15,1))
+f.tight_layout()
+f.set_figheight(4)
+a[1,0].text(-1.4, 230, 'A', fontsize=16, fontweight='bold', va='top', ha='right')
+f.subplots_adjust(bottom=-0.1, right=1, top=1) # for some reason that right adjust fixes xticks
+# 0.9
+
+# Create standard error 
+TW9Trans = TW9.transpose()
+
+Errors = []
+Tmp = []
+for x in TW9Trans:
+    for y in x:
+        if y < 100:
+            Tmp.append(y)
+    CurStdErr = np.std(Tmp)
+    Errors.append(CurStdErr)
+    Tmp = []
+# Make appropreate for dot size
+ErrorsDots = [i * 1  for i in Errors]
+ErrorsDotsSquared = np.power(ErrorsDots,1)
+
+Base = np.linspace(10,10,len(Errors))
+DotSizes = []
+for x in range(len(Errors)):
+    n = Base[x]/ErrorsDotsSquared[x]
+    DotSizes.append(n)
+
+
+# Fit and plot linear regression to wave speed over time
+
+slope, intercept, r, p, std_err = stats.linregress(Time, TW9AV)
+print('slope, intercept, r, p, std_err')
+print('TW9 regression fit')
+print(slope, intercept, r, p, std_err)
+
+def FitLinReg(x):
+  return slope * x + intercept
 
 mymodel = list(map(FitLinReg, Time))
 
+a[0,0].scatter(Time, TW9AV, DotSizes)
+a[0,0].plot(Time, mymodel, color='orange')
+a[0,0].set_ylabel('Wave travel time (s)')
+a[0,0].set_ylim(0.8, 1.55)
+a[0,0].set_title('0.9')
 
-ax[2].plot(Time, mymodel, color='orange')
 
+
+# 0.75
+
+# Create standard error 
+TW75Trans = TW75.transpose()
+
+Errors = []
+Tmp = []
+for x in TW75Trans:
+    for y in x:
+        if y < 100:
+            Tmp.append(y)
+    CurStdErr = np.std(Tmp)
+    Errors.append(CurStdErr)
+    Tmp = []
+# Make appropreate for dot size
+ErrorsDots = [i * 1 for i in Errors]
+ErrorsDotsSquared = np.power(ErrorsDots,1.5)
+
+Base = np.linspace(10,10,len(Errors))
+DotSizes = []
+for x in range(len(Errors)):
+    n = Base[x]/ErrorsDotsSquared[x]
+    DotSizes.append(n)
+
+
+# Fit and plot linear regression to wave speed over time
+
+slope, intercept, r, p, std_err = stats.linregress(Time, TW75AV)
+print('TW75 regression fit')
+print(slope, intercept, r, p, std_err)
+
+def FitLinReg(x):
+  return slope * x + intercept
+
+mymodel = list(map(FitLinReg, Time))
+
+a[0,1].scatter(Time, TW75AV, DotSizes)
+a[0,1].plot(Time, mymodel, color='orange')
+a[0,1].set_ylim(0.8, 1.55)
+a[0,1].set_title('0.75')
+
+
+
+# 0.6
+
+# Create standard error 
+TW6Trans = TW6.transpose()
+
+Errors = []
+Tmp = []
+for x in TW6Trans:
+    for y in x:
+        if y < 100:
+            Tmp.append(y)
+    CurStdErr = np.std(Tmp)
+    Errors.append(CurStdErr)
+    Tmp = []
+# Make appropreate for dot size
+ErrorsDots = [i * 1  for i in Errors]
+ErrorsDotsSquared = np.power(ErrorsDots,1)
+
+Base = np.linspace(10,10,len(Errors))
+DotSizes = []
+for x in range(len(Errors)):
+    n = Base[x]/ErrorsDotsSquared[x]
+    DotSizes.append(n)
+
+
+# Fit and plot linear regression to wave speed over time
+
+slope, intercept, r, p, std_err = stats.linregress(Time, TW6AV)
+print('TW6 regression fit')
+print(slope, intercept, r, p, std_err)
+
+def FitLinReg(x):
+  return slope * x + intercept
+
+mymodel = list(map(FitLinReg, Time))
+
+a[0,2].scatter(Time, TW6AV, DotSizes)
+a[0,2].plot(Time, mymodel, color='orange')
+a[0,2].set_ylim(0.8, 1.55)
+a[0,2].set_title('0.6')
+
+
+
+
+# TRIGGER RATE
+
+# 0.9
+a[1,0].scatter(Time, BP9, color='C0')
+a[1,0].set_xlabel('Presentation number')
+a[1,0].set_ylabel('Trigger rate (%)')
+a[1,0].set_ylim(0,100)
+a[1,0].text(-1.6, 114, 'B', fontsize=16, fontweight='bold', va='top', ha='right')
+
+#Calculate regression and plot it
+
+slope, intercept, r, p, std_err = stats.linregress(Time, BP9)
+mymodel = list(map(FitLinReg, Time))
+print('BP9 regression fit')
+print(slope, intercept, r, p, std_err)
+
+a[1,0].plot(Time, mymodel, color='orange')
+
+
+# 0.75
+a[1,1].scatter(Time, BP75, color='C0')
+a[1,1].set_xlabel('Presentation number')
+
+a[1,1].set_ylim(0,100)
+
+#Calculate regression and plot it
+
+slope, intercept, r, p, std_err = stats.linregress(Time, BP75)
+mymodel = list(map(FitLinReg, Time))
+print('BP75 regression fit')
+print(slope, intercept, r, p, std_err)
+
+a[1,1].plot(Time, mymodel, color='orange')
+
+# 0.6
+a[1,2].scatter(Time, BP6, color='C0')
+a[1,2].set_xlabel('Presentation number')
+
+a[1,2].set_ylim(0,100)
+
+#Calculate regression and plot it
+
+slope, intercept, r, p, std_err = stats.linregress(Time, BP6)
+mymodel = list(map(FitLinReg, Time))
+
+print('BP6 regression fit')
+print(slope, intercept, r, p, std_err)
+
+a[1,2].plot(Time, mymodel, color='orange')
+#a[1,2].set_xticks()
