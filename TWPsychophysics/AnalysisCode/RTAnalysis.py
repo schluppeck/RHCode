@@ -10,8 +10,11 @@ Conditions = [0.9, 0.75, 0.6]
 
 FilePrefix = "TW_" + PartInitials + "*"
 
-DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+DataLocation = f"../Data/{PartInitials}Data/"
+#DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
 SearchTxt = DataLocation + FilePrefix
+
+# %%
 
 # %%
 # Travel time analysis
@@ -72,7 +75,8 @@ for x in range(len(ReactionTimeTrue)):
 
 RTPrefix = "RT_" + PartInitials + "*"
 
-DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+# DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+DataLocation = f"../Data/{PartInitials}Data/"
 RTSearchTxt = DataLocation + RTPrefix
 
 
@@ -84,6 +88,7 @@ for File in glob.glob(RTSearchTxt):
 # Create list of all reaction times
 RTAll = []
 for File in RTAllFileNames:
+    print(f"processing file :${File}")
     df = pd.read_excel(File)
     df = df.reset_index()  # make sure indexes pair with number of rows
     for index, row in df.iterrows():
@@ -93,6 +98,8 @@ for File in RTAllFileNames:
         row.pop("RT_std")
         for x in range(row.size):
             RTAll.append(float(row.iloc[x]))
+
+# @DS df gets filled ok
 
 # Get mean and std 
 RTMean = float(np.nanmean(RTAll))
@@ -110,7 +117,9 @@ AllDataTrue = [TW9, TW75, TW6]
 
 fig, ax = plt.subplots(2)
 
-ax[0].boxplot(AllDataTrue, tick_labels=Conditions)
+#ax[0].boxplot(AllDataTrue, tick_labels=Conditions)
+ax[0].boxplot(AllDataTrue) #, tick_labels=Conditions)
+
 ax[0].set_xlabel('Contrast level')
 ax[0].set_ylabel('Reaction time (s)')
 
