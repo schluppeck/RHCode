@@ -17,6 +17,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy import stats
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 
 
 # Get participant details and parameters
@@ -440,3 +444,37 @@ print(slope, intercept, r, p, std_err)
 
 a[1,2].plot(Time, mymodel, color='orange')
 #a[1,2].set_xticks()
+
+
+## Polynomial regression
+TW9AV = np.array(TW9AV)
+#TW9AV = TW9AV.reshape(-1,1)
+#Time = Time.reshape(-1,1)
+
+
+# perform regression
+          
+def polyregress(xdata,ydata,degree):
+  return np.polynomial.polynomial.polyfit(xdata,ydata,degree)
+
+a = polyregress(Time, TW9AV, 6)
+
+
+# Visualize real data with polynomial regression
+f2, a2 = plt.subplots(1, figsize=(10,10))
+f2.tight_layout()
+
+# Train polynomial regression model on the whole dataset
+pr = PolynomialFeatures(degree = 6) # parametarise degree
+X_poly = pr.fit_transform(Time)
+lr_2 = LinearRegression()
+lr_2.fit(X_poly, TW9AV)
+y_pred_poly = lr_2.predict(X_poly)
+
+# Plot the outcome
+a2.scatter(Time,TW9AV, color = 'lightcoral')
+a2.plot(Time, lr_2.predict(a), color = 'firebrick')
+
+
+
+
