@@ -1,3 +1,4 @@
+# A temp file where I move the data into a tidy format
 import glob
 import pandas as pd
 import numpy as np

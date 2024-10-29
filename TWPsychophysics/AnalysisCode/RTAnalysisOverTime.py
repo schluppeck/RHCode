@@ -10,18 +10,13 @@
 
 
 
-
 import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
 from scipy import stats
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-
+from scipy import signal
+from sklearn.metrics import mean_squared_error
 
 # Get participant details and parameters
 PartInitials = "RH"
@@ -92,6 +87,11 @@ RTGroupedArray[RTGroupedArray > 3.58] = np.nan
 TW9 = np.array(RTGrouped[0::3])
 TW75 = np.array(RTGrouped[1::3])
 TW6 = np.array(RTGrouped[2::3])
+
+# Seeing if the weird trends are due to noise
+#TW9 = TW9[0:7:]
+#TW75 = TW75[0:7:]
+#TW6 = TW6[0:7:]
 
 # Average across trials
 TW9AV = np.nanmean(TW9, axis=0)
@@ -234,7 +234,7 @@ ax[0].set_ylim(0.9, 1.3)
 ax[0].text(-.95, 1.36, 'A', fontsize=16, fontweight='bold', va='top', ha='right')
 
 
-# TRIGGER RATES
+# WAVE SPEED
 
 ax[1].scatter(Time, BPCount, color='C0')
 ax[1].set_xlabel('Presentation number')
@@ -248,9 +248,6 @@ slope, intercept, r, p, std_err = stats.linregress(Time, BPCount)
 mymodel = list(map(FitLinReg, Time))
 
 ax[1].plot(Time, mymodel, color='orange')
-
-
-
 
 
 
@@ -294,8 +291,6 @@ print('slope, intercept, r, p, std_err')
 print('TW9 regression fit')
 print(slope, intercept, r, p, std_err)
 
-def FitLinReg(x):
-  return slope * x + intercept
 
 mymodel = list(map(FitLinReg, Time))
 
@@ -338,9 +333,6 @@ slope, intercept, r, p, std_err = stats.linregress(Time, TW75AV)
 print('TW75 regression fit')
 print(slope, intercept, r, p, std_err)
 
-def FitLinReg(x):
-  return slope * x + intercept
-
 mymodel = list(map(FitLinReg, Time))
 
 a[0,1].scatter(Time, TW75AV, DotSizes)
@@ -381,8 +373,6 @@ slope, intercept, r, p, std_err = stats.linregress(Time, TW6AV)
 print('TW6 regression fit')
 print(slope, intercept, r, p, std_err)
 
-def FitLinReg(x):
-  return slope * x + intercept
 
 mymodel = list(map(FitLinReg, Time))
 
@@ -446,10 +436,7 @@ a[1,2].plot(Time, mymodel, color='orange')
 #a[1,2].set_xticks()
 
 
-## Polynomial regression
-TW9AV = np.array(TW9AV)
-#TW9AV = TW9AV.reshape(-1,1)
-#Time = Time.reshape(-1,1)
+# %% Polynomial regression 
 
 
 # perform regression
@@ -457,23 +444,101 @@ TW9AV = np.array(TW9AV)
 def polyregress(xdata,ydata,degree):
   return np.polynomial.polynomial.polyfit(xdata,ydata,degree)
 
-a = polyregress(Time, TW9AV, 6)
+def evaluate(x,coeffs):
+  y = 0
+  m = 1
+  for c in coeffs:
+    y += c * m
+    m *= x
+  return y
+
+# interpolation function
+
+def ntrp(x,xa,xb,ya,yb): return (x-xa) * (yb-ya) / (xb-xa) + ya
 
 
-# Visualize real data with polynomial regression
-f2, a2 = plt.subplots(1, figsize=(10,10))
+# Group TWs into one list to then iterate over
+GroupedTW = [TW9AV, TW75AV, TW6AV]
+
+# Create subplots
+f2, a2 = plt.subplots(2, 3, figsize=(17,6))
 f2.tight_layout()
+CycleNum = 0
+Names=["0.9", "0.75", "0.6"]
 
-# Train polynomial regression model on the whole dataset
-pr = PolynomialFeatures(degree = 6) # parametarise degree
-X_poly = pr.fit_transform(Time)
-lr_2 = LinearRegression()
-lr_2.fit(X_poly, TW9AV)
-y_pred_poly = lr_2.predict(X_poly)
+for CurContLevel in GroupedTW:
 
-# Plot the outcome
-a2.scatter(Time,TW9AV, color = 'lightcoral')
-a2.plot(Time, lr_2.predict(a), color = 'firebrick')
+# Create coefficients for the given contrast level
+    
+    coeffs = polyregress(Time, CurContLevel, 10)
+    if CycleNum == 1:
+        coeffs = polyregress(Time, CurContLevel, 12)
+    # generate regression curve datax
+    xplot = []
+    yplot = []
+    plotpoints = 17
+    xmin = min(Time)
+    xmax = max(Time)
+
+    for n in range(plotpoints+1):
+        x = ntrp(n,0,plotpoints,xmin,xmax)
+        y = evaluate(x,coeffs)
+        xplot += [x]
+        yplot += [y]
+
+    a2[0, CycleNum].scatter(Time,CurContLevel,s=32)
+    a2[0, CycleNum].plot(xplot, yplot, color="orange")
+    a2[0, CycleNum].set_ylim(0.65,1.55)
+    a2[0, CycleNum].set_title(f"{Names[CycleNum]}")
+    CycleNum += 1
+    yplot.pop(0)
+    print(mean_squared_error(TW9AV, yplot))
+
+a2[0,0].set_ylabel('Mean response time (s)')
+
+## Sawtooth function!
+
+t = np.linspace(1, 17, 17)
+Sig = signal.sawtooth(0.05 * np.pi * 8 * t)
+Sig = Sig=Sig/4.8
+#a2[0,0].plot(t,Sig+1.1, color="orange")
+
+
+
+
+# FITTING TO TRIGGER RATE 
+
+GroupedBP = [BP9, BP75, BP6]
+CycleNum = 0
+for CurContLevel in GroupedBP:
+
+# Create coefficients for the given contrast level
+    
+    coeffs = polyregress(Time, CurContLevel,6)
+    if CycleNum == 0:
+        coeffs = polyregress(Time, CurContLevel, 5)
+    # generate regression curve datax
+    xplot = []
+    yplot = []
+    plotpoints = 17
+    xmin = min(Time)
+    xmax = max(Time)
+
+    for n in range(plotpoints+1):
+        x = ntrp(n,0,plotpoints,xmin,xmax)
+        y = evaluate(x,coeffs)
+        xplot += [x]
+        yplot += [y]
+
+    a2[1, CycleNum].scatter(Time,CurContLevel,s=32)
+    a2[1, CycleNum].plot(xplot, yplot, color="orange")
+    #a2[1, CycleNum].set_ylim(0.65,1.55)
+    CycleNum += 1
+    yplot.pop(0)
+    print(mean_squared_error(BP6, yplot))
+
+a2[1,0].set_ylabel('Trigger rate (%)')
+
 
 
 
