@@ -1,9 +1,14 @@
+# A temp file where I move the data into a tidy format
 import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 import math as math
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 
 # Get participant details and parameters
 PartInitials = "RH"
@@ -11,14 +16,10 @@ Conditions = [0.9, 0.75, 0.6]
 
 FilePrefix = "TW_" + PartInitials + "*"
 
-DataLocation = f"../Data/{PartInitials}Data/"
-#DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
+DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
 SearchTxt = DataLocation + FilePrefix
 
-# %%
-
-# %%
-# Travel time analysis
+# %% Travel time analysis
 
 # Create list of all file names
 AllFileNames =  []
@@ -41,21 +42,42 @@ for File in AllFileNames:
 
 
 # Seperate each real column to seperate series
-ContLevel = pd.Series()
-ButtonPress = pd.Series()
-ReactionTime = pd.Series()
+ContLevel = pd.Series(name = "Contrast Level")
+ButtonPress = pd.Series(name = "Button_Pressed")
+ResponseTime = pd.Series(name = "Response_Time")
 for x in SepSeries:
     ContLevel = pd.concat([ContLevel, x.iloc[1:18]])
     ButtonPress = pd.concat([ButtonPress, x.iloc[18:35]])
-    ReactionTime = pd.concat([ReactionTime, x.iloc[35:52]])
+    ResponseTime = pd.concat([ResponseTime, x.iloc[35:52]])
+
+## Create dataframe with each row being a trial
+# Issues with duplicate labels so have to change series to np array
+ContLevel = ContLevel.to_numpy()
+ButtonPress = ButtonPress.to_numpy()
+ResponseTime = ResponseTime.to_numpy()
+
+# Create 1d Numpy array of participant intials
+PartInits = np.full(len(ContLevel), PartInitials)
+
+# Recombine data into tidy format
+ColumnLabels = ["Participant_Id", "Contrast_Level", "Button_Pressed", "Response_Time"]
+AllData = pd.DataFrame([PartInits, ContLevel, ButtonPress, ResponseTime], index = ColumnLabels)
+AllData = AllData.transpose()
 
 
-# Create list of response times that were true 
+# Create list of response times that were true at each contrast level
+TW9 = []
+TW75 = []
+TW6 = []
+
+
+
+
 ReactionTimeTrue = []
 ContLevelsTrue = []
-for x in range(ReactionTime.size):
+for x in range(ResponseTime.size):
     if ButtonPress.iloc[x] == "['right']":
-        ReactionTimeTrue.append(ReactionTime.iloc[x])
+        ReactionTimeTrue.append(ResponseTime.iloc[x])
         ContLevelsTrue.append(round(ContLevel.iloc[x], 1))
         
 # Split out reaction times based on condition
@@ -76,8 +98,7 @@ for x in range(len(ReactionTimeTrue)):
 
 RTPrefix = "RT_" + PartInitials + "*"
 
-# DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
-DataLocation = f"../Data/{PartInitials}Data/"
+DataLocation = '/home/rowanhuxley/Documents/Data_Various/BinRiv/PsychophysicsGeneral/data/'
 RTSearchTxt = DataLocation + RTPrefix
 
 
@@ -89,7 +110,6 @@ for File in glob.glob(RTSearchTxt):
 # Create list of all reaction times
 RTAll = []
 for File in RTAllFileNames:
-    print(f"processing file :${File}")
     df = pd.read_excel(File)
     df = df.reset_index()  # make sure indexes pair with number of rows
     for index, row in df.iterrows():
@@ -99,8 +119,6 @@ for File in RTAllFileNames:
         row.pop("RT_std")
         for x in range(row.size):
             RTAll.append(float(row.iloc[x]))
-
-# @DS df gets filled ok
 
 # Get mean and std 
 RTMean = float(np.nanmean(RTAll))
@@ -138,11 +156,6 @@ print(np.std(TW6))
 
 Time = np.linspace(1, 158, 158)
 
-#ax[0].boxplot(AllDataTrue, tick_labels=Conditions)
-ax[0].boxplot(AllDataTrue) #, tick_labels=Conditions)
-
-ax[0].set_xlabel('Contrast level')
-ax[0].set_ylabel('Reaction time (s)')
 
 #%% Chi squared
 
@@ -290,9 +303,13 @@ print(stats.shapiro(RTAll))
 
 #BOX PLOT
 fig2, ax2 = plt.subplots(1)
-ax2.boxplot(AllDataTrue, tick_labels=Conditions, meanline=True)
+ax2.boxplot(AllDataTrue,  meanline=True)
+ax2.set_xticklabels(Conditions)
 ax2.set_xlabel('Contrast level')
 ax2.set_ylabel('Wave travel time (s)')
+
+
+
 
 
 # ANOVA ----- NEED TO INSTALL STATSMODELS MODULE
