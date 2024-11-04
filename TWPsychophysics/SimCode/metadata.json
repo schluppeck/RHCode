@@ -1,0 +1,19 @@
+{
+    "tables": {
+        "table": {
+            "columns": {
+                "contrast": {
+                    "sdtype": "numerical"
+                },
+                "direction": {
+                    "sdtype": "categorical"
+                },
+                "time": {
+                    "sdtype": "numerical"
+                }
+            }
+        }
+    },
+    "relationships": [],
+    "METADATA_SPEC_VERSION": "V1"
+}
